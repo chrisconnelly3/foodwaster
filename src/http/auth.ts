@@ -8,7 +8,7 @@ export function passcodeGuard(expected: string) {
   return async (req: FastifyRequest, reply: FastifyReply) => {
     const provided = (req.headers["x-passcode"] as string | undefined) ?? undefined;
     if (!checkPasscode(expected, provided)) {
-      reply.code(401).send({ error: "unauthorized" });
+      return reply.code(401).send({ error: "unauthorized" });
     }
   };
 }
