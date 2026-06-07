@@ -39,4 +39,16 @@ describe("sendSummaryEmail", () => {
     const r = await sendSummaryEmail(summary, deps as any);
     expect(r.status).toBe("failed");
   });
+
+  it("still sends (status sent) when the chart render throws", async () => {
+    const resend = { emails: { send: vi.fn().mockResolvedValue({ data: { id: "e1" }, error: null }) } };
+    const deps = {
+      resend, emailLog: new EmailLogRepo(db), from: "Bot <b@x.com>", to: "w@x.com",
+      renderHtml: () => "<html>x</html>", renderChart: vi.fn().mockRejectedValue(new Error("timeout")),
+      copy: { subject: "S", headline: "H", body: "B", tips: [] }, now: () => "2026-06-08T13:00:00Z",
+    };
+    const r = await sendSummaryEmail(summary, deps as any);
+    expect(r.status).toBe("sent");
+    expect(resend.emails.send).toHaveBeenCalled();
+  });
 });

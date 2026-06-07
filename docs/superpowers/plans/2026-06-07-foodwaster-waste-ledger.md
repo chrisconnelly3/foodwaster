@@ -41,6 +41,7 @@ foodwaster/
       money.ts                # cents <-> dollars formatting
       periods.ts              # week/month boundaries in APP_TZ
       stats.ts                # totals, trend, projected annual, repeat offenders, breakdowns
+      grocers.ts              # GROCER_LABEL map shared across email + price modules
     identify/
       types.ts                # Identifier interface, IdentifyResult
       openFoodFacts.ts        # barcode -> product
@@ -1331,8 +1332,7 @@ Expected: FAIL — module not found.
 ```ts
 import Anthropic from "@anthropic-ai/sdk";
 import type { PriceQuery, PriceResult } from "./types.js";
-
-const GROCER_LABEL = { whole_foods: "Whole Foods", kroger: "Kroger", target: "Target" } as const;
+import { GROCER_LABEL } from "../domain/grocers.js";
 
 export function parseEstimate(text: string): PriceResult | null {
   const match = text.match(/\{[\s\S]*\}/);
@@ -2915,10 +2915,9 @@ Expected: FAIL — module not found.
 import Anthropic from "@anthropic-ai/sdk";
 import type { EmailSummary } from "./summaryBuilder.js";
 import { formatCents } from "../domain/money.js";
+import { GROCER_LABEL } from "../domain/grocers.js";
 
 export interface EmailCopy { subject: string; headline: string; body: string; tips: string[]; }
-
-const GROCER_LABEL = { whole_foods: "Whole Foods", kroger: "Kroger", target: "Target" } as const;
 
 export function buildCopyPrompt(s: EmailSummary): string {
   const offenders = s.repeatOffenders.map(o => `${o.name} (${o.count}×, ${formatCents(o.cents)})`).join(", ") || "none";
@@ -2952,7 +2951,7 @@ function parseCopy(text: string): EmailCopy | null {
   const m = text.match(/\{[\s\S]*\}/); if (!m) return null;
   try {
     const o = JSON.parse(m[0]);
-    if (!o.subject || !o.headline || !o.body || !Array.isArray(o.tips)) return null;
+    if (!o.subject || !o.headline || !o.body || !Array.isArray(o.tips) || o.tips.length === 0) return null;
     return { subject: o.subject, headline: o.headline, body: o.body, tips: o.tips.map(String) };
   } catch { return null; }
 }
@@ -3001,7 +3000,7 @@ export async function renderTrendPng(s: EmailSummary, fetchFn = fetch): Promise<
     type: "bar",
     data: {
       labels: s.trend.map(t => t.label),
-      datasets: [{ label: "$ wasted per week", data: s.trend.map(t => t.cents / 100), backgroundColor: "#b00020" }],
+      datasets: [{ label: "$ wasted per week", data: s.trend.map(t => Number((t.cents / 100).toFixed(2))), backgroundColor: "#b00020" }],
     },
     options: { plugins: { legend: { display: true } }, scales: { y: { beginAtZero: true } } },
   };
@@ -3054,8 +3053,7 @@ Expected: FAIL — module not found.
 import type { EmailSummary } from "./summaryBuilder.js";
 import type { EmailCopy } from "./copywriter.js";
 import { formatCents } from "../domain/money.js";
-
-const GROCER_LABEL = { whole_foods: "Whole Foods", kroger: "Kroger", target: "Target" } as const;
+import { GROCER_LABEL } from "../domain/grocers.js";
 
 export function renderEmailHtml(s: EmailSummary, copy: EmailCopy, chartCid: string): string {
   const offenders = s.repeatOffenders.map(o => `<li>${o.name} — ${o.count}× = <b>${formatCents(o.cents)}</b></li>`).join("");
@@ -3262,8 +3260,11 @@ export function dueReports(
   alreadySent: (periodType: "weekly" | "monthly", periodStart: string) => boolean,
 ): DueReport[] {
   const out: DueReport[] = [];
-  const isMonday = ((now.getUTCDay() + 6) % 7) === 0;
-  const isFirst = now.getUTCDate() === 1;
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short", day: "numeric" }).formatToParts(now);
+  const dayName = parts.find(p => p.type === "weekday")!.value;
+  const dayNum = Number(parts.find(p => p.type === "day")!.value);
+  const isMonday = dayName === "Mon";
+  const isFirst = dayNum === 1;
 
   if (isMonday) {
     const priorWeekDay = new Date(now); priorWeekDay.setUTCDate(now.getUTCDate() - 1);

@@ -1,7 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { PriceQuery, PriceResult } from "./types.js";
-
-const GROCER_LABEL = { whole_foods: "Whole Foods", kroger: "Kroger", target: "Target" } as const;
+import { GROCER_LABEL } from "../domain/grocers.js";
 
 export function parseEstimate(text: string): PriceResult | null {
   const match = text.match(/\{[\s\S]*\}/);

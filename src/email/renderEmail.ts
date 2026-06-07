@@ -1,8 +1,7 @@
 import type { EmailSummary } from "./summaryBuilder.js";
 import type { EmailCopy } from "./copywriter.js";
 import { formatCents } from "../domain/money.js";
-
-const GROCER_LABEL = { whole_foods: "Whole Foods", kroger: "Kroger", target: "Target" } as const;
+import { GROCER_LABEL } from "../domain/grocers.js";
 
 export function renderEmailHtml(s: EmailSummary, copy: EmailCopy, chartCid: string): string {
   const offenders = s.repeatOffenders.map(o => `<li>${o.name} — ${o.count}× = <b>${formatCents(o.cents)}</b></li>`).join("");

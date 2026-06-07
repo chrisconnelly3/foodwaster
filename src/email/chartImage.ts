@@ -6,7 +6,7 @@ export async function renderTrendPng(s: EmailSummary, fetchFn = fetch): Promise<
     type: "bar",
     data: {
       labels: s.trend.map(t => t.label),
-      datasets: [{ label: "$ wasted per week", data: s.trend.map(t => t.cents / 100), backgroundColor: "#b00020" }],
+      datasets: [{ label: "$ wasted per week", data: s.trend.map(t => Number((t.cents / 100).toFixed(2))), backgroundColor: "#b00020" }],
     },
     options: { plugins: { legend: { display: true } }, scales: { y: { beginAtZero: true } } },
   };

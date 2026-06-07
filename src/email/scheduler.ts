@@ -10,8 +10,11 @@ export function dueReports(
   alreadySent: (periodType: "weekly" | "monthly", periodStart: string) => boolean,
 ): DueReport[] {
   const out: DueReport[] = [];
-  const isMonday = ((now.getUTCDay() + 6) % 7) === 0;
-  const isFirst = now.getUTCDate() === 1;
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short", day: "numeric" }).formatToParts(now);
+  const dayName = parts.find(p => p.type === "weekday")!.value;
+  const dayNum = Number(parts.find(p => p.type === "day")!.value);
+  const isMonday = dayName === "Mon";
+  const isFirst = dayNum === 1;
 
   if (isMonday) {
     const priorWeekDay = new Date(now); priorWeekDay.setUTCDate(now.getUTCDate() - 1);

@@ -1,10 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { EmailSummary } from "./summaryBuilder.js";
 import { formatCents } from "../domain/money.js";
+import { GROCER_LABEL } from "../domain/grocers.js";
 
 export interface EmailCopy { subject: string; headline: string; body: string; tips: string[]; }
-
-const GROCER_LABEL = { whole_foods: "Whole Foods", kroger: "Kroger", target: "Target" } as const;
 
 export function buildCopyPrompt(s: EmailSummary): string {
   const offenders = s.repeatOffenders.map(o => `${o.name} (${o.count}×, ${formatCents(o.cents)})`).join(", ") || "none";
@@ -38,7 +37,7 @@ function parseCopy(text: string): EmailCopy | null {
   const m = text.match(/\{[\s\S]*\}/); if (!m) return null;
   try {
     const o = JSON.parse(m[0]);
-    if (!o.subject || !o.headline || !o.body || !Array.isArray(o.tips)) return null;
+    if (!o.subject || !o.headline || !o.body || !Array.isArray(o.tips) || o.tips.length === 0) return null;
     return { subject: o.subject, headline: o.headline, body: o.body, tips: o.tips.map(String) };
   } catch { return null; }
 }
