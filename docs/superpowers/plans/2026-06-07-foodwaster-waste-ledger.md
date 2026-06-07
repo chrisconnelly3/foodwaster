@@ -2422,11 +2422,12 @@ export function registerLedgerRoutes(app: FastifyInstance, deps: LedgerDeps): vo
     const allPriced = onlyPriced(deps.items.listRecent(1000));
 
     const weekTotal = totalCents(weekItems);
+    const monthTotal = totalCents(monthItems);
     return reply.send({
       weekLabel: wk.label, monthLabel: mo.label,
       weekTotalCents: weekTotal,
-      monthTotalCents: totalCents(monthItems),
-      projectedAnnualCents: projectedAnnualCents(weekTotal, "weekly"),
+      monthTotalCents: monthTotal,
+      projectedAnnualCents: projectedAnnualCents(monthTotal, "monthly"), // dashboard uses stable monthly run-rate
       weeklyTrend: weeklyTrend(allPriced, deps.tz),
       byCategory: byCategory(monthItems),
       byGrocer: byGrocer(monthItems),
