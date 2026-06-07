@@ -9,6 +9,6 @@ export class PriceChecksRepo {
     ).run(itemId, source, raw, success ? 1 : 0, ranAt);
   }
   listForItem(itemId: number): PriceCheck[] {
-    return this.db.prepare("SELECT * FROM price_check WHERE item_id=? ORDER BY ran_at").all(itemId) as PriceCheck[];
+    return this.db.prepare("SELECT * FROM price_check WHERE item_id=? ORDER BY ran_at").all(itemId) as unknown as PriceCheck[];
   }
 }

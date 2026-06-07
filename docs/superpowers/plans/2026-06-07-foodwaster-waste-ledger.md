@@ -574,17 +574,17 @@ export class WasteItemsRepo {
   }
 
   listPending(): WasteItem[] {
-    return this.db.prepare("SELECT * FROM waste_item WHERE status='pending' ORDER BY captured_at").all() as WasteItem[];
+    return this.db.prepare("SELECT * FROM waste_item WHERE status='pending' ORDER BY captured_at").all() as unknown as WasteItem[];
   }
 
   listBetween(startIso: string, endIso: string): WasteItem[] {
     return this.db.prepare(
       "SELECT * FROM waste_item WHERE captured_at >= ? AND captured_at < ? ORDER BY captured_at"
-    ).all(startIso, endIso) as WasteItem[];
+    ).all(startIso, endIso) as unknown as WasteItem[];
   }
 
   listRecent(limit = 100): WasteItem[] {
-    return this.db.prepare("SELECT * FROM waste_item ORDER BY captured_at DESC LIMIT ?").all(limit) as WasteItem[];
+    return this.db.prepare("SELECT * FROM waste_item ORDER BY captured_at DESC LIMIT ?").all(limit) as unknown as WasteItem[];
   }
 }
 ```
@@ -667,7 +667,7 @@ export class PriceChecksRepo {
     ).run(itemId, source, raw, success ? 1 : 0, ranAt);
   }
   listForItem(itemId: number): PriceCheck[] {
-    return this.db.prepare("SELECT * FROM price_check WHERE item_id=? ORDER BY ran_at").all(itemId) as PriceCheck[];
+    return this.db.prepare("SELECT * FROM price_check WHERE item_id=? ORDER BY ran_at").all(itemId) as unknown as PriceCheck[];
   }
 }
 ```
