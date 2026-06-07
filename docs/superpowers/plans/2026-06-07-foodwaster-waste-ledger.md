@@ -17,6 +17,7 @@
 - Money is stored and computed in **integer cents** everywhere. Format to dollars only at display/email time.
 - All timestamps stored as ISO-8601 UTC strings; "week" = Mon–Sun, "month" = calendar month, in a fixed configured timezone (`APP_TZ`, default `America/Chicago`).
 - Test runner: **Vitest**. Test files live next to source as `*.test.ts`.
+- **SQLite driver:** use Node's built-in **`node:sqlite`** (`DatabaseSync`), NOT `better-sqlite3` (no native build toolchain on the target machine). The `prepare().run()/get()/all()` and `exec()` APIs are compatible. Differences to mind: there is no `.pragma()` method (use `db.exec("PRAGMA ...")`) and no `db.transaction(fn)` helper (use manual `BEGIN`/`COMMIT`/`ROLLBACK` via `exec`).
 - Every task is TDD: failing test → run (fail) → implement → run (pass) → commit.
 - Commit messages use Conventional Commits.
 
@@ -106,8 +107,7 @@ foodwaster/
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.0",
     "@fastify/static": "^7.0.0",
-    "better-sqlite3": "^11.3.0",
-    "chartjs-node-canvas": "^4.1.6",
+    "chartjs-node-canvas": "^5.0.0",
     "chart.js": "^4.4.0",
     "fastify": "^4.28.0",
     "node-cron": "^3.0.3",
@@ -116,7 +116,6 @@ foodwaster/
     "zod": "^3.23.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.11",
     "@types/node": "^22.0.0",
     "@types/node-cron": "^3.0.11",
     "tsx": "^4.19.0",
@@ -440,18 +439,18 @@ Expected: FAIL — cannot find `./connection.js`.
 - [ ] **Step 4: Write implementation** (`src/db/connection.ts`)
 
 ```ts
-import Database from "better-sqlite3";
+import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-export type DB = Database.Database;
+export type DB = DatabaseSync;
 const here = dirname(fileURLToPath(import.meta.url));
 
 export function openDb(path: string): DB {
-  const db = new Database(path);
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
+  const db = new DatabaseSync(path);
+  db.exec("PRAGMA journal_mode = WAL");
+  db.exec("PRAGMA foreign_keys = ON");
   return db;
 }
 
@@ -460,6 +459,8 @@ export function migrate(db: DB): void {
   db.exec(sql);
 }
 ```
+
+> `node:sqlite` is a built-in Node module (no dependency to install). It emits an `ExperimentalWarning` on first use — that is expected and harmless. Its `prepare/run/get/all/exec` API matches what the repositories use.
 
 - [ ] **Step 5: Make schema.sql load after build**
 
@@ -1831,15 +1832,20 @@ export class JobQueue {
   }
 
   claimNext(nowIso: string): Job | undefined {
-    const tx = this.db.transaction((): Job | undefined => {
+    // node:sqlite has no db.transaction() helper; use manual BEGIN/COMMIT.
+    this.db.exec("BEGIN");
+    try {
       const job = this.db.prepare(
         "SELECT * FROM job WHERE done=0 AND run_after <= ? ORDER BY run_after LIMIT 1"
       ).get(nowIso) as Job | undefined;
-      if (!job) return undefined;
+      if (!job) { this.db.exec("COMMIT"); return undefined; }
       this.db.prepare("UPDATE job SET claimed_at=? WHERE id=?").run(nowIso, job.id);
+      this.db.exec("COMMIT");
       return job;
-    });
-    return tx();
+    } catch (e) {
+      this.db.exec("ROLLBACK");
+      throw e;
+    }
   }
 
   complete(id: number): void {
