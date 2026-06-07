@@ -47,4 +47,8 @@ export class WasteItemsRepo {
   listRecent(limit = 100): WasteItem[] {
     return this.db.prepare("SELECT * FROM waste_item ORDER BY captured_at DESC LIMIT ?").all(limit) as unknown as WasteItem[];
   }
+
+  setPhotoPath(id: number, path: string): void {
+    this.db.prepare("UPDATE waste_item SET photo_path=? WHERE id=?").run(path, id);
+  }
 }
