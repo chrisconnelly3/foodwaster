@@ -6,7 +6,7 @@
 
 **Architecture:** One always-on Node/TypeScript box. Fastify serves a PWA and JSON API; captures land in SQLite as `pending` and are resolved by an in-process SQLite-backed job queue worker (identify → price → fallback). node-cron builds and sends emails via Resend. better-sqlite3 + photos live on a persistent volume.
 
-**Tech Stack:** TypeScript, Fastify, better-sqlite3, Vitest, Playwright, node-cron, Resend SDK, Anthropic SDK, `@zxing/library` (browser), Chart rendering via `chartjs-node-canvas` (server, for email images) + Chart.js (browser).
+**Tech Stack:** TypeScript, Fastify, built-in `node:sqlite`, Vitest, Playwright, node-cron, Resend SDK, Anthropic SDK, `@zxing/library` (browser, via CDN), Chart.js (browser, via CDN), QuickChart.io (server, for email chart images — no native deps).
 
 **Spec:** `docs/superpowers/specs/2026-06-07-foodwaster-waste-ledger-design.md`
 
@@ -107,8 +107,6 @@ foodwaster/
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.0",
     "@fastify/static": "^7.0.0",
-    "chartjs-node-canvas": "^5.0.0",
-    "chart.js": "^4.4.0",
     "fastify": "^4.28.0",
     "node-cron": "^3.0.3",
     "playwright": "^1.47.0",
@@ -2990,23 +2988,27 @@ git commit -m "feat: guilt-trip email copywriter with fallback"
 **Files:**
 - Create: `src/email/chartImage.ts`, `src/email/renderEmail.ts`, `src/email/renderEmail.test.ts`
 
-- [ ] **Step 1: Write `src/email/chartImage.ts`** (no unit test — thin wrapper over chartjs-node-canvas; exercised manually)
+- [ ] **Step 1: Write `src/email/chartImage.ts`** (no unit test — renders the trend PNG via the QuickChart.io HTTP API; exercised manually)
+
+> **Why not `chartjs-node-canvas`?** It depends on the native `canvas` module, which has no prebuilt binary and won't compile on the target machine (same toolchain gap as `better-sqlite3`). QuickChart renders the same Chart.js config to a PNG over HTTP — zero native dependencies. The function keeps the same name/signature (`renderTrendPng(s): Promise<Buffer>`) so the sender and sendReport are unchanged.
 
 ```ts
-import { ChartJSNodeCanvas } from "chartjs-node-canvas";
 import type { EmailSummary } from "./summaryBuilder.js";
 
-const canvas = new ChartJSNodeCanvas({ width: 600, height: 300, backgroundColour: "white" });
-
-export async function renderTrendPng(s: EmailSummary): Promise<Buffer> {
-  return canvas.renderToBuffer({
+/** Render the weekly-waste trend as a PNG via QuickChart.io (no native deps). */
+export async function renderTrendPng(s: EmailSummary, fetchFn = fetch): Promise<Buffer> {
+  const chart = {
     type: "bar",
     data: {
       labels: s.trend.map(t => t.label),
-      datasets: [{ label: "$ wasted per week", data: s.trend.map(t => t.cents / 100) }],
+      datasets: [{ label: "$ wasted per week", data: s.trend.map(t => t.cents / 100), backgroundColor: "#b00020" }],
     },
     options: { plugins: { legend: { display: true } }, scales: { y: { beginAtZero: true } } },
-  });
+  };
+  const url = `https://quickchart.io/chart?w=600&h=300&bkg=white&c=${encodeURIComponent(JSON.stringify(chart))}`;
+  const res = await fetchFn(url);
+  if (!res.ok) throw new Error(`quickchart ${res.status}`);
+  return Buffer.from(await res.arrayBuffer());
 }
 ```
 
@@ -3162,12 +3164,21 @@ export interface SendDeps {
 export async function sendSummaryEmail(s: EmailSummary, deps: SendDeps): Promise<{ status: "sent" | "failed" }> {
   const cid = "trend-chart";
   const html = deps.renderHtml(s, deps.copy, cid);
-  let status: "sent" | "failed" = "sent";
+
+  // Chart is best-effort: if QuickChart is unreachable, still send the email (without the image).
+  let attachments: any[] | undefined;
   try {
     const png = await deps.renderChart(s);
+    attachments = [{ filename: "trend.png", content: png, contentId: cid }];
+  } catch {
+    attachments = undefined;
+  }
+
+  let status: "sent" | "failed" = "sent";
+  try {
     const res = await deps.resend.emails.send({
       from: deps.from, to: deps.to, subject: deps.copy.subject, html,
-      attachments: [{ filename: "trend.png", content: png, contentId: cid } as any],
+      ...(attachments ? { attachments } : {}),
     });
     if ((res as any).error) status = "failed";
   } catch {
