@@ -3,7 +3,7 @@ import type { WasteItemsRepo } from "../db/repositories/wasteItems.js";
 import type { JobQueue } from "./jobQueue.js";
 import { onProcessError } from "./worker.js";
 
-const BACKOFF_MS = [0, 60_000, 300_000]; // attempt 0->1min, 1->5min
+const BACKOFF_MS = [5_000, 60_000]; // attempt 0 -> 5s, attempt 1 -> 60s (attempt 2 -> failed, no retry)
 
 export async function runOnce(
   q: JobQueue, items: WasteItemsRepo,

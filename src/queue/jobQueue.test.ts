@@ -37,4 +37,11 @@ describe("JobQueue", () => {
     const again = q.claimNext("2026-06-07T00:06:00Z")!;
     expect(again.attempts).toBe(1);
   });
+  it("does not re-claim a job that is already claimed (in-flight)", () => {
+    const id = items.create({ grocer: "kroger", capture_type: "barcode" }, "2026-06-07T00:00:00Z");
+    q.enqueue(id, "2026-06-07T00:00:00Z");
+    const first = q.claimNext("2026-06-07T00:00:01Z")!;
+    expect(first).toBeTruthy();
+    expect(q.claimNext("2026-06-07T00:00:02Z")).toBeUndefined(); // still in-flight, not done, not retried
+  });
 });

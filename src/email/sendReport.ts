@@ -11,7 +11,7 @@ import { sendSummaryEmail } from "./sender.js";
 
 export interface SendReportDeps {
   items: WasteItemsRepo; emailLog: EmailLogRepo; anthropic: Anthropic; resend: Resend;
-  from: string; to: string; tz: string;
+  from: string; to: string | (() => string); tz: string;
 }
 
 export function makeSendReport(deps: SendReportDeps) {
@@ -24,8 +24,9 @@ export function makeSendReport(deps: SendReportDeps) {
       periodItems, allItems, tz: deps.tz,
     });
     const copy = await generateCopy(summary, deps.anthropic);
+    const to = typeof deps.to === "function" ? deps.to() : deps.to;
     return sendSummaryEmail(summary, {
-      resend: deps.resend, emailLog: deps.emailLog, from: deps.from, to: deps.to, copy,
+      resend: deps.resend, emailLog: deps.emailLog, from: deps.from, to, copy,
       renderHtml: renderEmailHtml, renderChart: renderTrendPng, now: () => new Date().toISOString(),
     });
   };

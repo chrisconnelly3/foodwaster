@@ -14,7 +14,7 @@ export class JobQueue {
     this.db.exec("BEGIN");
     try {
       const job = this.db.prepare(
-        "SELECT * FROM job WHERE done=0 AND run_after <= ? ORDER BY run_after LIMIT 1"
+        "SELECT * FROM job WHERE done=0 AND claimed_at IS NULL AND run_after <= ? ORDER BY run_after LIMIT 1"
       ).get(nowIso) as Job | undefined;
       if (!job) { this.db.exec("COMMIT"); return undefined; }
       this.db.prepare("UPDATE job SET claimed_at=? WHERE id=?").run(nowIso, job.id);

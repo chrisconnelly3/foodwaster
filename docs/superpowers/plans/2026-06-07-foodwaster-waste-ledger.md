@@ -1817,6 +1817,14 @@ describe("JobQueue", () => {
     const again = q.claimNext("2026-06-07T00:06:00Z")!;
     expect(again.attempts).toBe(1);
   });
+  it("does not re-claim a job that is already claimed (in-flight)", () => {
+    const items = new WasteItemsRepo(db);
+    const id = items.create({ grocer: "kroger", capture_type: "barcode" }, "2026-06-07T00:00:00Z");
+    q.enqueue(id, "2026-06-07T00:00:00Z");
+    const first = q.claimNext("2026-06-07T00:00:01Z")!;
+    expect(first).toBeTruthy();
+    expect(q.claimNext("2026-06-07T00:00:02Z")).toBeUndefined(); // still in-flight, not done, not retried
+  });
 });
 ```
 
@@ -1844,7 +1852,7 @@ export class JobQueue {
     this.db.exec("BEGIN");
     try {
       const job = this.db.prepare(
-        "SELECT * FROM job WHERE done=0 AND run_after <= ? ORDER BY run_after LIMIT 1"
+        "SELECT * FROM job WHERE done=0 AND claimed_at IS NULL AND run_after <= ? ORDER BY run_after LIMIT 1"
       ).get(nowIso) as Job | undefined;
       if (!job) { this.db.exec("COMMIT"); return undefined; }
       this.db.prepare("UPDATE job SET claimed_at=? WHERE id=?").run(nowIso, job.id);
@@ -2061,7 +2069,7 @@ import type { WasteItemsRepo } from "../db/repositories/wasteItems.js";
 import type { JobQueue } from "./jobQueue.js";
 import { onProcessError } from "./worker.js";
 
-const BACKOFF_MS = [0, 60_000, 300_000]; // attempt 0->1min, 1->5min
+const BACKOFF_MS = [5_000, 60_000]; // attempt 0 -> 5s, attempt 1 -> 60s (attempt 2 -> failed, no retry)
 
 export async function runOnce(
   q: JobQueue, items: WasteItemsRepo,
@@ -3347,7 +3355,7 @@ import { sendSummaryEmail } from "./sender.js";
 
 export interface SendReportDeps {
   items: WasteItemsRepo; emailLog: EmailLogRepo; anthropic: Anthropic; resend: Resend;
-  from: string; to: string; tz: string;
+  from: string; to: string | (() => string); tz: string;
 }
 
 export function makeSendReport(deps: SendReportDeps) {
@@ -3360,8 +3368,9 @@ export function makeSendReport(deps: SendReportDeps) {
       periodItems, allItems, tz: deps.tz,
     });
     const copy = await generateCopy(summary, deps.anthropic);
+    const to = typeof deps.to === "function" ? deps.to() : deps.to;
     return sendSummaryEmail(summary, {
-      resend: deps.resend, emailLog: deps.emailLog, from: deps.from, to: deps.to, copy,
+      resend: deps.resend, emailLog: deps.emailLog, from: deps.from, to, copy,
       renderHtml: renderEmailHtml, renderChart: renderTrendPng, now: () => new Date().toISOString(),
     });
   };
@@ -3479,7 +3488,7 @@ const stopRunner = startRunner(queue, items, process1, 3000);
 
 const sendReport = makeSendReport({
   items, emailLog, anthropic, resend,
-  from: cfg.emailFrom, to: settings.get("wife_email", cfg.wifeEmail), tz: cfg.tz,
+  from: cfg.emailFrom, to: () => settings.get("wife_email", cfg.wifeEmail), tz: cfg.tz,
 });
 
 const app = buildServer({
@@ -3499,7 +3508,7 @@ cron.schedule("0 13 * * *", async () => {
   for (const d of due) {
     if (d.periodType === "weekly" && settings.get("weekly_enabled", "true") !== "true") continue;
     if (d.periodType === "monthly" && settings.get("monthly_enabled", "true") !== "true") continue;
-    await sendReport(d.periodType, now);
+    await sendReport(d.periodType, new Date(d.periodStart));
   }
 });
 

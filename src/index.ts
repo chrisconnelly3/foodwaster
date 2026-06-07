@@ -61,7 +61,7 @@ const stopRunner = startRunner(queue, items, process1, 3000);
 
 const sendReport = makeSendReport({
   items, emailLog, anthropic, resend,
-  from: cfg.emailFrom, to: settings.get("wife_email", cfg.wifeEmail), tz: cfg.tz,
+  from: cfg.emailFrom, to: () => settings.get("wife_email", cfg.wifeEmail), tz: cfg.tz,
 });
 
 const app = buildServer({
@@ -82,7 +82,7 @@ cron.schedule("0 13 * * *", async () => {
   for (const d of due) {
     if (d.periodType === "weekly" && settings.get("weekly_enabled", "true") !== "true") continue;
     if (d.periodType === "monthly" && settings.get("monthly_enabled", "true") !== "true") continue;
-    await sendReport(d.periodType, now);
+    await sendReport(d.periodType, new Date(d.periodStart));
   }
 });
 
