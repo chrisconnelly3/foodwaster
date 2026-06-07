@@ -1,0 +1,32 @@
+import Anthropic from "@anthropic-ai/sdk";
+import { Resend } from "resend";
+import type { WasteItemsRepo } from "../db/repositories/wasteItems.js";
+import type { EmailLogRepo } from "../db/repositories/emailLog.js";
+import { weekBounds, monthBounds } from "../domain/periods.js";
+import { buildSummary } from "./summaryBuilder.js";
+import { generateCopy } from "./copywriter.js";
+import { renderEmailHtml } from "./renderEmail.js";
+import { renderTrendPng } from "./chartImage.js";
+import { sendSummaryEmail } from "./sender.js";
+
+export interface SendReportDeps {
+  items: WasteItemsRepo; emailLog: EmailLogRepo; anthropic: Anthropic; resend: Resend;
+  from: string; to: string; tz: string;
+}
+
+export function makeSendReport(deps: SendReportDeps) {
+  return async (periodType: "weekly" | "monthly", now: Date): Promise<{ status: "sent" | "failed" }> => {
+    const b = periodType === "weekly" ? weekBounds(now, deps.tz) : monthBounds(now, deps.tz);
+    const periodItems = deps.items.listBetween(b.startIso, b.endIso).filter(i => i.price_cents != null);
+    const allItems = deps.items.listRecent(2000).filter(i => i.price_cents != null);
+    const summary = buildSummary({
+      periodType, periodLabel: b.label, periodStart: b.startIso, periodEnd: b.endIso,
+      periodItems, allItems, tz: deps.tz,
+    });
+    const copy = await generateCopy(summary, deps.anthropic);
+    return sendSummaryEmail(summary, {
+      resend: deps.resend, emailLog: deps.emailLog, from: deps.from, to: deps.to, copy,
+      renderHtml: renderEmailHtml, renderChart: renderTrendPng, now: () => new Date().toISOString(),
+    });
+  };
+}
