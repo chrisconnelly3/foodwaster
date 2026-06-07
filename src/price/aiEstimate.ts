@@ -14,7 +14,8 @@ export function parseEstimate(text: string): PriceResult | null {
 }
 
 export async function estimatePrice(q: PriceQuery, client: Anthropic): Promise<PriceResult | null> {
-  const prompt = `Estimate the current US retail price in dollars for "${q.identity.brand ?? ""} ${q.identity.product_name}" at ${GROCER_LABEL[q.grocer]}. Respond ONLY as JSON: {"price_usd": number}`;
+  const name = `${q.identity.brand ?? ""} ${q.identity.product_name}`.replace(/"/g, "'").trim();
+  const prompt = `Estimate the current US retail price in dollars for "${name}" at ${GROCER_LABEL[q.grocer]}. Respond ONLY as JSON: {"price_usd": number}`;
   const msg = await client.messages.create({
     model: "claude-sonnet-4-5", max_tokens: 100,
     messages: [{ role: "user", content: prompt }],

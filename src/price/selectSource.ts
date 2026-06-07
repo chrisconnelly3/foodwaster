@@ -14,6 +14,7 @@ export function selectSource(grocer: Grocer, cfg: Config, mods: Mods = defaultMo
   return (q: PriceQuery): Promise<PriceResult | null> => {
     if (grocer === "kroger") return mods.krogerPrice(q, cfg);
     if (grocer === "target") return mods.targetPrice(q, cfg);
-    return mods.wholeFoodsPrice(q, cfg);
+    if (grocer === "whole_foods") return mods.wholeFoodsPrice(q, cfg);
+    throw new Error(`unknown grocer: ${grocer}`);
   };
 }

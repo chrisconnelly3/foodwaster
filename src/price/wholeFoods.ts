@@ -23,11 +23,11 @@ export async function wholeFoodsPrice(q: PriceQuery, cfg: Config): Promise<Price
     const page = await ctx.newPage();
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
     const whole = await page.locator(".a-price .a-price-whole").first().textContent({ timeout: 5000 }).catch(() => null);
-    const frac = await page.locator(".a-price .a-price-fraction").first().textContent().catch(() => null);
+    const frac = await page.locator(".a-price .a-price-fraction").first().textContent({ timeout: 5000 }).catch(() => null);
     if (!whole) return null;
     const cents = parsePriceString(whole, frac ?? "00");
     if (cents === null) return null;
-    return { price_cents: cents, source: "scrape", confidence: 0.6, raw: `${whole}.${frac}` };
+    return { price_cents: cents, source: "scrape", confidence: 0.6, raw: `${whole}.${frac ?? "00"}` };
   } catch {
     return null;
   } finally {

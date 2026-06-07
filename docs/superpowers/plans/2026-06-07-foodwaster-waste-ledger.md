@@ -1347,7 +1347,8 @@ export function parseEstimate(text: string): PriceResult | null {
 }
 
 export async function estimatePrice(q: PriceQuery, client: Anthropic): Promise<PriceResult | null> {
-  const prompt = `Estimate the current US retail price in dollars for "${q.identity.brand ?? ""} ${q.identity.product_name}" at ${GROCER_LABEL[q.grocer]}. Respond ONLY as JSON: {"price_usd": number}`;
+  const name = `${q.identity.brand ?? ""} ${q.identity.product_name}`.replace(/"/g, "'").trim();
+  const prompt = `Estimate the current US retail price in dollars for "${name}" at ${GROCER_LABEL[q.grocer]}. Respond ONLY as JSON: {"price_usd": number}`;
   const msg = await client.messages.create({
     model: "claude-sonnet-4-5", max_tokens: 100,
     messages: [{ role: "user", content: prompt }],
@@ -1431,19 +1432,21 @@ export function parseKrogerProducts(json: any): PriceResult | null {
 }
 
 async function getToken(cfg: Config, fetchFn = fetch): Promise<string> {
-  const body = new URLSearchParams({ grant_type: "client_credentials", scope: "product.compact" });
+  const params = new URLSearchParams({ grant_type: "client_credentials", scope: "product.compact" });
   const auth = Buffer.from(`${cfg.kroger.clientId}:${cfg.kroger.clientSecret}`).toString("base64");
   const res = await fetchFn("https://api.kroger.com/v1/connect/oauth2/token", {
     method: "POST",
     headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },
-    body,
+    body: params,
   });
   if (!res.ok) throw new Error(`kroger token ${res.status}`);
-  return (await res.json()).access_token;
+  const body = await res.json();
+  if (!body.access_token) throw new Error("kroger token: no access_token in response");
+  return body.access_token;
 }
 
 export async function krogerPrice(q: PriceQuery, cfg: Config, fetchFn = fetch): Promise<PriceResult | null> {
-  if (!cfg.kroger.clientId || !cfg.kroger.locationId) return null;
+  if (!cfg.kroger.clientId || !cfg.kroger.clientSecret || !cfg.kroger.locationId) return null;
   const token = await getToken(cfg, fetchFn);
   const term = encodeURIComponent(q.identity.product_name);
   const url = `https://api.kroger.com/v1/products?filter.term=${term}&filter.locationId=${cfg.kroger.locationId}&filter.limit=1`;
@@ -1599,11 +1602,11 @@ export async function wholeFoodsPrice(q: PriceQuery, cfg: Config): Promise<Price
     const page = await ctx.newPage();
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
     const whole = await page.locator(".a-price .a-price-whole").first().textContent({ timeout: 5000 }).catch(() => null);
-    const frac = await page.locator(".a-price .a-price-fraction").first().textContent().catch(() => null);
+    const frac = await page.locator(".a-price .a-price-fraction").first().textContent({ timeout: 5000 }).catch(() => null);
     if (!whole) return null;
     const cents = parsePriceString(whole, frac ?? "00");
     if (cents === null) return null;
-    return { price_cents: cents, source: "scrape", confidence: 0.6, raw: `${whole}.${frac}` };
+    return { price_cents: cents, source: "scrape", confidence: 0.6, raw: `${whole}.${frac ?? "00"}` };
   } catch {
     return null;
   } finally {
@@ -1661,6 +1664,11 @@ describe("resolvePrice", () => {
   it("throws when both source and estimate fail", async () => {
     await expect(resolvePrice(q, { source: async () => null, estimate: async () => null })).rejects.toThrow();
   });
+  it("propagates when source returns null and estimate throws", async () => {
+    const source = vi.fn().mockResolvedValue(null);
+    const estimate = vi.fn().mockRejectedValue(new Error("estimate boom"));
+    await expect(resolvePrice(q, { source, estimate })).rejects.toThrow("estimate boom");
+  });
 });
 ```
 
@@ -1681,11 +1689,12 @@ export interface ResolveDeps {
 
 export async function resolvePrice(q: PriceQuery, deps: ResolveDeps): Promise<PriceResult> {
   let viaSource: PriceResult | null = null;
-  try { viaSource = await deps.source(q); } catch { viaSource = null; }
+  let sourceError: unknown;
+  try { viaSource = await deps.source(q); } catch (err) { sourceError = err; }
   if (viaSource) return viaSource;
   const viaEstimate = await deps.estimate(q);
   if (viaEstimate) return viaEstimate;
-  throw new Error("price unresolved");
+  throw sourceError ?? new Error("price unresolved");
 }
 ```
 
@@ -1750,7 +1759,8 @@ export function selectSource(grocer: Grocer, cfg: Config, mods: Mods = defaultMo
   return (q: PriceQuery): Promise<PriceResult | null> => {
     if (grocer === "kroger") return mods.krogerPrice(q, cfg);
     if (grocer === "target") return mods.targetPrice(q, cfg);
-    return mods.wholeFoodsPrice(q, cfg);
+    if (grocer === "whole_foods") return mods.wholeFoodsPrice(q, cfg);
+    throw new Error(`unknown grocer: ${grocer}`);
   };
 }
 ```

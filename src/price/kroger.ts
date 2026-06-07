@@ -13,19 +13,21 @@ export function parseKrogerProducts(json: any): PriceResult | null {
 }
 
 async function getToken(cfg: Config, fetchFn = fetch): Promise<string> {
-  const body = new URLSearchParams({ grant_type: "client_credentials", scope: "product.compact" });
+  const params = new URLSearchParams({ grant_type: "client_credentials", scope: "product.compact" });
   const auth = Buffer.from(`${cfg.kroger.clientId}:${cfg.kroger.clientSecret}`).toString("base64");
   const res = await fetchFn("https://api.kroger.com/v1/connect/oauth2/token", {
     method: "POST",
     headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },
-    body,
+    body: params,
   });
   if (!res.ok) throw new Error(`kroger token ${res.status}`);
-  return (await res.json()).access_token;
+  const body = await res.json();
+  if (!body.access_token) throw new Error("kroger token: no access_token in response");
+  return body.access_token;
 }
 
 export async function krogerPrice(q: PriceQuery, cfg: Config, fetchFn = fetch): Promise<PriceResult | null> {
-  if (!cfg.kroger.clientId || !cfg.kroger.locationId) return null;
+  if (!cfg.kroger.clientId || !cfg.kroger.clientSecret || !cfg.kroger.locationId) return null;
   const token = await getToken(cfg, fetchFn);
   const term = encodeURIComponent(q.identity.product_name);
   const url = `https://api.kroger.com/v1/products?filter.term=${term}&filter.locationId=${cfg.kroger.locationId}&filter.limit=1`;

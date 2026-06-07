@@ -27,4 +27,9 @@ describe("resolvePrice", () => {
   it("throws when both source and estimate fail", async () => {
     await expect(resolvePrice(q, { source: async () => null, estimate: async () => null })).rejects.toThrow();
   });
+  it("propagates when source returns null and estimate throws", async () => {
+    const source = vi.fn().mockResolvedValue(null);
+    const estimate = vi.fn().mockRejectedValue(new Error("estimate boom"));
+    await expect(resolvePrice(q, { source, estimate })).rejects.toThrow("estimate boom");
+  });
 });

@@ -7,9 +7,10 @@ export interface ResolveDeps {
 
 export async function resolvePrice(q: PriceQuery, deps: ResolveDeps): Promise<PriceResult> {
   let viaSource: PriceResult | null = null;
-  try { viaSource = await deps.source(q); } catch { viaSource = null; }
+  let sourceError: unknown;
+  try { viaSource = await deps.source(q); } catch (err) { sourceError = err; }
   if (viaSource) return viaSource;
   const viaEstimate = await deps.estimate(q);
   if (viaEstimate) return viaEstimate;
-  throw new Error("price unresolved");
+  throw sourceError ?? new Error("price unresolved");
 }
