@@ -3817,13 +3817,17 @@ git commit -m "feat: PWA frontend logic (scan, photo, ledger, charts)"
 **Files:**
 - Create: `Dockerfile`, `.dockerignore`, `README.md`
 
-- [ ] **Step 1: Create `Dockerfile`** (Playwright base image ships Chromium + deps)
+- [ ] **Step 1: Create `Dockerfile`**
+
+> **Node version matters:** the app uses the built-in `node:sqlite`, which requires **Node ≥ 22** (we develop on Node 24). The Microsoft Playwright base images ship Node 20, so we instead start from `node:24-bookworm-slim` and install Chromium + its OS deps via `npx playwright install --with-deps chromium`.
 
 ```dockerfile
-FROM mcr.microsoft.com/playwright:v1.47.0-jammy
+FROM node:24-bookworm-slim
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
+# Install Chromium and its OS dependencies for the Whole Foods Playwright scrape
+RUN npx playwright install --with-deps chromium
 COPY . .
 RUN npm run build
 ENV NODE_ENV=production
