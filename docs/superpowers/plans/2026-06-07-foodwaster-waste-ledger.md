@@ -962,7 +962,7 @@ export function repeatOffenders(items: WasteItem[]): { name: string; count: numb
   for (const i of items) {
     const name = i.product_name ?? "Unknown";
     const cur = m.get(name) ?? { count: 0, cents: 0 };
-    cur.count += i.qty; cur.cents += lineCents(i); m.set(name, cur);
+    cur.count += 1; cur.cents += lineCents(i); m.set(name, cur); // count = distinct toss events
   }
   return [...m.entries()].map(([name, v]) => ({ name, ...v }))
     .filter(x => x.count > 1).sort((a, b) => b.cents - a.cents);
