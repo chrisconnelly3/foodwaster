@@ -1,0 +1,17 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #eee; }
+header { padding: 12px 16px; background: #b00020; font-weight: 700; }
+main { padding: 16px; padding-bottom: 96px; }
+.tabbar { position: fixed; bottom: 0; left: 0; right: 0; display: flex; background: #1b1b1b; }
+.tabbar button { flex: 1; padding: 14px; background: none; border: none; color: #aaa; font-size: 14px; }
+.tabbar button.active { color: #fff; border-top: 2px solid #b00020; }
+.grocer-row { display: flex; gap: 8px; margin: 12px 0; }
+.grocer-row button { flex: 1; padding: 12px; border-radius: 10px; border: 1px solid #333; background: #1b1b1b; color: #eee; }
+.grocer-row button.sel { background: #b00020; border-color: #b00020; }
+.big-btn { width: 100%; padding: 18px; font-size: 18px; border: none; border-radius: 12px; margin: 8px 0; background: #2a2a2a; color: #fff; }
+#video { width: 100%; border-radius: 12px; background: #000; }
+.item { padding: 10px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; }
+.pending { color: #e0a000; }
+.total { font-size: 40px; font-weight: 800; }
+.muted { color: #888; font-size: 13px; }
+input[type=password], input[type=text] { padding: 12px; width: 100%; border-radius: 10px; border: 1px solid #333; background: #1b1b1b; color: #eee; }
