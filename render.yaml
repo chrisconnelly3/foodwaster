@@ -1,0 +1,48 @@
+# Render.com Blueprint (alternative to Fly.io).
+# NOTE: Render's FREE tier sleeps after 15 min (kills the monthly cron) and has NO persistent
+# disk. A persistent disk requires a paid instance, so this blueprint uses the Starter plan
+# (~$7/mo) + a 1 GB disk (~$1/mo). Fly.io (see fly.toml) is cheaper for this app.
+#
+# Deploy: Render Dashboard → New → Blueprint → connect chrisconnelly3/foodwaster.
+# Then fill the `sync: false` secret values in the dashboard.
+
+services:
+  - type: web
+    name: foodwaster
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    region: ohio
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: APP_TZ
+        value: America/Chicago
+      - key: DATA_DIR
+        value: /app/data
+      - key: APP_PASSCODE
+        sync: false
+      - key: WIFE_EMAIL
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: KROGER_CLIENT_ID
+        sync: false
+      - key: KROGER_CLIENT_SECRET
+        sync: false
+      - key: KROGER_LOCATION_ID
+        sync: false
+      - key: TARGET_STORE_ID
+        sync: false
+      - key: TARGET_API_KEY
+        sync: false
+      - key: WHOLE_FOODS_ZIP
+        sync: false
+    disk:
+      name: foodwaster-data
+      mountPath: /app/data
+      sizeGB: 1
