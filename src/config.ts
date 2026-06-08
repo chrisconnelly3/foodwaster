@@ -14,6 +14,7 @@ const schema = z.object({
   TARGET_STORE_ID: z.string().optional(),
   TARGET_API_KEY: z.string().optional(),
   WHOLE_FOODS_ZIP: z.string().optional(),
+  WHOLE_FOODS_SCRAPE: z.string().optional(), // "true" enables the Playwright scrape; default off -> AI estimate
 });
 
 export type Config = {
@@ -21,7 +22,7 @@ export type Config = {
   anthropicKey: string; resendKey: string;
   kroger: { clientId?: string; clientSecret?: string; locationId?: string };
   target: { storeId?: string; apiKey?: string };
-  wholeFoods: { zip?: string };
+  wholeFoods: { zip?: string; scrape: boolean };
 };
 
 export function loadConfig(env: Record<string, string | undefined> = process.env): Config {
@@ -31,6 +32,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     dataDir: e.DATA_DIR, anthropicKey: e.ANTHROPIC_API_KEY, resendKey: e.RESEND_API_KEY,
     kroger: { clientId: e.KROGER_CLIENT_ID, clientSecret: e.KROGER_CLIENT_SECRET, locationId: e.KROGER_LOCATION_ID },
     target: { storeId: e.TARGET_STORE_ID, apiKey: e.TARGET_API_KEY },
-    wholeFoods: { zip: e.WHOLE_FOODS_ZIP },
+    wholeFoods: { zip: e.WHOLE_FOODS_ZIP, scrape: e.WHOLE_FOODS_SCRAPE === "true" },
   };
 }

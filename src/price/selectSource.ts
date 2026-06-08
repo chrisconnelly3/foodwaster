@@ -14,7 +14,12 @@ export function selectSource(grocer: Grocer, cfg: Config, mods: Mods = defaultMo
   return (q: PriceQuery): Promise<PriceResult | null> => {
     if (grocer === "kroger") return mods.krogerPrice(q, cfg);
     if (grocer === "target") return mods.targetPrice(q, cfg);
-    if (grocer === "whole_foods") return mods.wholeFoodsPrice(q, cfg);
+    if (grocer === "whole_foods") {
+      // The Whole Foods Playwright scrape hangs/OOMs on small hosts. Off by default →
+      // null here makes resolvePrice fall back to the AI estimate. Enable via WHOLE_FOODS_SCRAPE=true.
+      if (!cfg.wholeFoods.scrape) return Promise.resolve(null);
+      return mods.wholeFoodsPrice(q, cfg);
+    }
     throw new Error(`unknown grocer: ${grocer}`);
   };
 }

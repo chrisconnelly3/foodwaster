@@ -32,4 +32,14 @@ describe("resolvePrice", () => {
     const estimate = vi.fn().mockRejectedValue(new Error("estimate boom"));
     await expect(resolvePrice(q, { source, estimate })).rejects.toThrow("estimate boom");
   });
+  it("times out a hanging source and falls back to estimate", async () => {
+    const source = () => new Promise<PriceResult | null>(() => {}); // never settles
+    const estimate = vi.fn().mockResolvedValue({ price_cents: 250, source: "ai_estimate", confidence: 0.4, raw: "{}" } as PriceResult);
+    const r = await resolvePrice(q, { source, estimate }, { timeoutMs: 30 });
+    expect(r.price_cents).toBe(250);
+  });
+  it("throws (never hangs) when both source and estimate stall", async () => {
+    const hang = () => new Promise<PriceResult | null>(() => {});
+    await expect(resolvePrice(q, { source: hang, estimate: hang }, { timeoutMs: 30 })).rejects.toThrow();
+  });
 });

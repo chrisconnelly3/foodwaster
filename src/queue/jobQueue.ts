@@ -9,13 +9,23 @@ export class JobQueue {
     this.db.prepare("INSERT INTO job (item_id, run_after) VALUES (?, ?)").run(itemId, runAfter);
   }
 
-  claimNext(nowIso: string): Job | undefined {
+  /**
+   * Claim the next ready job. A job is claimable if it is unclaimed, OR if its claim is
+   * stale (older than `staleBeforeIso`) — the latter reclaims jobs orphaned by a worker
+   * that died mid-process (visibility-timeout pattern). Pass no `staleBeforeIso` to only
+   * pick unclaimed jobs.
+   */
+  claimNext(nowIso: string, staleBeforeIso?: string): Job | undefined {
     // node:sqlite has no db.transaction() helper; use manual BEGIN/COMMIT.
     this.db.exec("BEGIN");
     try {
-      const job = this.db.prepare(
-        "SELECT * FROM job WHERE done=0 AND claimed_at IS NULL AND run_after <= ? ORDER BY run_after LIMIT 1"
-      ).get(nowIso) as Job | undefined;
+      const job = (staleBeforeIso
+        ? this.db.prepare(
+            "SELECT * FROM job WHERE done=0 AND run_after <= ? AND (claimed_at IS NULL OR claimed_at < ?) ORDER BY run_after LIMIT 1"
+          ).get(nowIso, staleBeforeIso)
+        : this.db.prepare(
+            "SELECT * FROM job WHERE done=0 AND claimed_at IS NULL AND run_after <= ? ORDER BY run_after LIMIT 1"
+          ).get(nowIso)) as Job | undefined;
       if (!job) { this.db.exec("COMMIT"); return undefined; }
       this.db.prepare("UPDATE job SET claimed_at=? WHERE id=?").run(nowIso, job.id);
       this.db.exec("COMMIT");
@@ -24,6 +34,16 @@ export class JobQueue {
       this.db.exec("ROLLBACK");
       throw e;
     }
+  }
+
+  /**
+   * Clear claims on all unfinished jobs. Called at startup: nothing is truly in-flight
+   * when the process boots, so any lingering `claimed_at` is from a previous crash —
+   * resetting it requeues those orphaned jobs. Returns how many were reclaimed.
+   */
+  resetClaims(): number {
+    const info = this.db.prepare("UPDATE job SET claimed_at=NULL WHERE done=0 AND claimed_at IS NOT NULL").run();
+    return Number(info.changes);
   }
 
   complete(id: number): void {

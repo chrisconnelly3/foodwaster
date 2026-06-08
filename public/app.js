@@ -45,13 +45,17 @@ $("scanBtn").onclick = async () => {
   const video = $("video");
   if (scanning) { reader.reset(); video.hidden = true; scanning = false; $("scanBtn").textContent = "📷 Scan barcode"; return; }
   video.hidden = false; scanning = true; $("scanBtn").textContent = "⏹ Stop scanning";
+  let handled = false; // ignore the repeated per-frame callbacks; act on the FIRST read only
   reader.decodeFromVideoDevice(null, video, async (result) => {
-    if (result) {
-      const code = result.getText();
-      await postCapture({ grocer, capture_type: "barcode", barcode: code });
-      navigator.vibrate?.(80);
-      $("captureStatus").textContent = `Logged barcode ${code} ✓`;
-    }
+    if (!result || handled) return;
+    handled = true;
+    // Auto-close the camera after the first successful scan — reopen to scan the next item.
+    reader.reset();
+    video.hidden = true; scanning = false; $("scanBtn").textContent = "📷 Scan barcode";
+    const code = result.getText();
+    navigator.vibrate?.(80);
+    $("captureStatus").textContent = `Logged barcode ${code} ✓ (pricing…)`;
+    await postCapture({ grocer, capture_type: "barcode", barcode: code });
   });
 };
 

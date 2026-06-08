@@ -45,6 +45,7 @@ const checks = new PriceChecksRepo(db);
 const emailLog = new EmailLogRepo(db);
 const settings = new SettingsRepo(db);
 const queue = new JobQueue(db);
+queue.resetClaims(); // recover any jobs orphaned by a previous crash so they get reprocessed
 
 const anthropic = new Anthropic({ apiKey: cfg.anthropicKey });
 const resend = new Resend(cfg.resendKey);
