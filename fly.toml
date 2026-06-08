@@ -1,39 +1,30 @@
-# Fly.io config for FoodWaster.
-# Cheapest host that fully works: ~$3–4/mo (512MB always-on machine + 1GB volume).
+# fly.toml app configuration file generated for foodwaster on 2026-06-08T14:50:08Z
 #
-# First-time deploy (run from the repo root, with the Fly CLI installed + `fly auth login`):
-#   1. fly launch --no-deploy --copy-config --name foodwaster      # pick a unique name if taken
-#   2. fly volumes create foodwaster_data --region dfw --size 1     # 1 GB persistent disk
-#   3. fly secrets import < deploy/secrets.fly.env                  # loads your keys (gitignored)
-#   4. fly deploy
-#   5. fly open                                                     # opens the HTTPS URL
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
-# `app` must be globally unique — `fly launch` will rename it if "foodwaster" is taken.
 
-app = "foodwaster"
-primary_region = "dfw"   # Dallas — closest region to 75002
+app = 'foodwaster'
+primary_region = 'dfw'
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = 'Dockerfile'
 
-# Non-sensitive config. Real secrets/keys are set via `fly secrets` (see deploy/secrets.fly.env).
 [env]
-  APP_TZ = "America/Chicago"
-  DATA_DIR = "/app/data"
-  PORT = "8080"
+  APP_TZ = 'America/Chicago'
+  DATA_DIR = '/app/data'
+  PORT = '8080'
 
-# Persistent disk for the SQLite ledger + captured photos.
-[mounts]
-  source = "foodwaster_data"
-  destination = "/app/data"
+[[mounts]]
+  source = 'foodwaster_data'
+  destination = '/app/data'
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = false     # keep it up so the monthly cron always fires
+  auto_stop_machines = 'off'
   auto_start_machines = true
   min_machines_running = 1
 
 [[vm]]
-  size = "shared-cpu-1x"
-  memory = "512mb"               # bump to "1gb" if the Whole Foods scrape OOMs (it'll fall back to AI estimates otherwise)
+  size = 'shared-cpu-1x'
+  memory = '512mb'
