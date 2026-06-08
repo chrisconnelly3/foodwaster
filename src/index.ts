@@ -2,7 +2,7 @@ import cron from "node-cron";
 import Anthropic from "@anthropic-ai/sdk";
 import { Resend } from "resend";
 import { join } from "node:path";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, existsSync } from "node:fs";
 import { loadConfig } from "./config.js";
 import { openDb, migrate } from "./db/connection.js";
 import { WasteItemsRepo } from "./db/repositories/wasteItems.js";
@@ -28,6 +28,12 @@ import { registerEmailRoutes } from "./http/routes/email.js";
 import { registerCheaperRoutes } from "./http/routes/cheaper.js";
 import { makeSendReport } from "./email/sendReport.js";
 import { dueReports } from "./email/scheduler.js";
+
+// Load .env for local/dev runs. Hosting platforms inject real env vars directly,
+// so a missing .env is fine. Node's loader strips inline `# comments`.
+if (existsSync(".env")) {
+  try { process.loadEnvFile(".env"); } catch { /* ignore malformed/locked .env */ }
+}
 
 const cfg = loadConfig();
 mkdirSync(join(cfg.dataDir, "photos"), { recursive: true });
