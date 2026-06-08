@@ -23,7 +23,7 @@ import { buildServer } from "./http/server.js";
 import { registerCaptureRoutes } from "./http/routes/captures.js";
 import { registerLedgerRoutes } from "./http/routes/ledger.js";
 import { registerItemRoutes } from "./http/routes/items.js";
-import { registerSettingsRoutes } from "./http/routes/settings.js";
+import { registerSettingsRoutes, SETTING_DEFAULTS } from "./http/routes/settings.js";
 import { registerEmailRoutes } from "./http/routes/email.js";
 import { registerCheaperRoutes } from "./http/routes/cheaper.js";
 import { makeSendReport } from "./email/sendReport.js";
@@ -86,8 +86,8 @@ cron.schedule("0 13 * * *", async () => {
   const now = new Date();
   const due = dueReports(now, cfg.tz, (pt, ps) => emailLog.alreadySent(pt, ps));
   for (const d of due) {
-    if (d.periodType === "weekly" && settings.get("weekly_enabled", "true") !== "true") continue;
-    if (d.periodType === "monthly" && settings.get("monthly_enabled", "true") !== "true") continue;
+    if (d.periodType === "weekly" && settings.get("weekly_enabled", SETTING_DEFAULTS.weekly_enabled) !== "true") continue;
+    if (d.periodType === "monthly" && settings.get("monthly_enabled", SETTING_DEFAULTS.monthly_enabled) !== "true") continue;
     await sendReport(d.periodType, new Date(d.periodStart));
   }
 });

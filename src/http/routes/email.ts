@@ -12,7 +12,7 @@ export function registerEmailRoutes(app: FastifyInstance, deps: EmailRouteDeps):
     if (!checkPasscode(deps.passcode, req.headers["x-passcode"] as string | undefined)) {
       return reply.code(401).send({ error: "unauthorized" });
     }
-    const result = await deps.sendReport("weekly", deps.now());
+    const result = await deps.sendReport("monthly", deps.now());
     return reply.send(result);
   });
 }

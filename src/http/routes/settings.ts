@@ -4,13 +4,20 @@ import { checkPasscode } from "../auth.js";
 
 const KEYS = ["weekly_enabled", "monthly_enabled", "wife_email"] as const;
 
+// Cadence defaults: monthly-only. Weekly is off unless explicitly enabled via settings.
+export const SETTING_DEFAULTS: Record<(typeof KEYS)[number], string> = {
+  weekly_enabled: "false",
+  monthly_enabled: "true",
+  wife_email: "",
+};
+
 export function registerSettingsRoutes(app: FastifyInstance, deps: { settings: SettingsRepo; passcode: string }): void {
   app.get("/api/settings", async (req, reply) => {
     if (!checkPasscode(deps.passcode, req.headers["x-passcode"] as string | undefined)) {
       return reply.code(401).send({ error: "unauthorized" });
     }
     const out: Record<string, string> = {};
-    for (const k of KEYS) out[k] = deps.settings.get(k, k === "wife_email" ? "" : "true");
+    for (const k of KEYS) out[k] = deps.settings.get(k, SETTING_DEFAULTS[k]);
     return reply.send(out);
   });
 
