@@ -51,4 +51,20 @@ export class WasteItemsRepo {
   setPhotoPath(id: number, path: string): void {
     this.db.prepare("UPDATE waste_item SET photo_path=? WHERE id=?").run(path, id);
   }
+
+  delete(id: number): boolean {
+    // Remove FK-referencing rows first (price_check.item_id, job.item_id both
+    // reference waste_item(id)). node:sqlite has no .transaction() helper.
+    this.db.exec("BEGIN");
+    try {
+      this.db.prepare("DELETE FROM price_check WHERE item_id=?").run(id);
+      this.db.prepare("DELETE FROM job WHERE item_id=?").run(id);
+      const info = this.db.prepare("DELETE FROM waste_item WHERE id=?").run(id);
+      this.db.exec("COMMIT");
+      return Number(info.changes) > 0;
+    } catch (e) {
+      this.db.exec("ROLLBACK");
+      throw e;
+    }
+  }
 }

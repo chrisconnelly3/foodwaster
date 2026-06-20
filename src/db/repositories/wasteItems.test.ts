@@ -35,4 +35,20 @@ describe("WasteItemsRepo", () => {
     const inRange = repo.listBetween("2026-06-05T00:00:00Z", "2026-06-12T00:00:00Z");
     expect(inRange.length).toBe(1);
   });
+
+  it("delete removes the item and its dependent price_check + job rows", () => {
+    const id = repo.create({ grocer: "kroger", capture_type: "barcode" }, "2026-06-08T00:00:00Z");
+    db.prepare("INSERT INTO price_check (item_id, source, raw_result, success, ran_at) VALUES (?,?,?,?,?)")
+      .run(id, "api", "{}", 1, "2026-06-08T00:00:01Z");
+    db.prepare("INSERT INTO job (item_id, run_after) VALUES (?,?)").run(id, "2026-06-08T00:00:00Z");
+
+    expect(repo.delete(id)).toBe(true);
+    expect(repo.get(id)).toBeUndefined();
+    expect((db.prepare("SELECT COUNT(*) c FROM price_check WHERE item_id=?").get(id) as any).c).toBe(0);
+    expect((db.prepare("SELECT COUNT(*) c FROM job WHERE item_id=?").get(id) as any).c).toBe(0);
+  });
+
+  it("delete returns false when the item does not exist", () => {
+    expect(repo.delete(999)).toBe(false);
+  });
 });
