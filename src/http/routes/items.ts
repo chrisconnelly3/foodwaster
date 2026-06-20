@@ -33,4 +33,13 @@ export function registerItemRoutes(app: FastifyInstance, deps: { items: WasteIte
     }
     return reply.send(deps.items.get(id));
   });
+
+  app.delete<{ Params: { id: string } }>("/api/items/:id", async (req, reply) => {
+    if (!checkPasscode(deps.passcode, req.headers["x-passcode"] as string | undefined)) {
+      return reply.code(401).send({ error: "unauthorized" });
+    }
+    const existed = deps.items.delete(Number(req.params.id));
+    if (!existed) return reply.code(404).send({ error: "not found" });
+    return reply.send({ ok: true });
+  });
 }

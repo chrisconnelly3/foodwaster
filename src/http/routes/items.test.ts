@@ -40,3 +40,25 @@ describe("settings routes", () => {
     expect(res.json().weekly_enabled).toBe("false");
   });
 });
+
+describe("DELETE /api/items/:id", () => {
+  it("rejects without passcode", async () => {
+    const app = buildApp();
+    const id = items.create({ grocer: "kroger", capture_type: "barcode" }, "2026-06-08T00:00:00Z");
+    const res = await app.inject({ method: "DELETE", url: `/api/items/${id}` });
+    expect(res.statusCode).toBe(401);
+  });
+  it("404s when the item does not exist", async () => {
+    const app = buildApp();
+    const res = await app.inject({ method: "DELETE", url: "/api/items/999", headers: { "x-passcode": "secret" } });
+    expect(res.statusCode).toBe(404);
+  });
+  it("deletes an existing item", async () => {
+    const app = buildApp();
+    const id = items.create({ grocer: "kroger", capture_type: "barcode" }, "2026-06-08T00:00:00Z");
+    const res = await app.inject({ method: "DELETE", url: `/api/items/${id}`, headers: { "x-passcode": "secret" } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ ok: true });
+    expect(items.get(id)).toBeUndefined();
+  });
+});
