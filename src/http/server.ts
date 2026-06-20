@@ -21,8 +21,21 @@ export interface ServerCtx {
   registerRoutes: (app: FastifyInstance) => void;
 }
 
+// Tolerate an empty application/json body. Safari attaches `Content-Type: application/json`
+// (with Content-Length: 0) to body-less requests like DELETE; Fastify's default JSON parser
+// rejects that with 400 FST_ERR_CTP_EMPTY_JSON_BODY. Treat empty as `undefined` instead.
+export function installJsonParser(app: FastifyInstance): void {
+  app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => {
+    const text = body as string;
+    if (text === "" || text == null) return done(null, undefined);
+    try { done(null, JSON.parse(text)); }
+    catch (err) { (err as any).statusCode = 400; done(err as Error, undefined); }
+  });
+}
+
 export function buildServer(ctx: ServerCtx): FastifyInstance {
   const app = Fastify({ logger: true, bodyLimit: 15 * 1024 * 1024 });
+  installJsonParser(app);
   app.register(fastifyStatic, { root: resolvePublicDir(), prefix: "/" });
   ctx.registerRoutes(app);
   return app;

@@ -146,7 +146,9 @@ async function saveItem(id) {
 async function deleteItem(id) {
   if (!confirm("Delete this item? This can't be undone.")) return;
   try {
-    const res = await fetch(`/api/items/${id}`, { method: "DELETE", headers: headers() });
+    // No Content-Type: this request has no body. Sending application/json with an
+    // empty body makes Safari trip Fastify's empty-JSON-body check (400).
+    const res = await fetch(`/api/items/${id}`, { method: "DELETE", headers: { "x-passcode": passcode } });
     if (!res.ok) return alert(`Delete failed (${res.status}). Pull to refresh and try again.`);
     loadLedger();
   } catch (e) {

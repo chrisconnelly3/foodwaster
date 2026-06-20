@@ -5,10 +5,12 @@ import { SettingsRepo } from "../../db/repositories/settings.js";
 import Fastify from "fastify";
 import { registerItemRoutes } from "./items.js";
 import { registerSettingsRoutes } from "./settings.js";
+import { installJsonParser } from "../server.js";
 
 let db: DB; let items: WasteItemsRepo; let settings: SettingsRepo;
 function buildApp() {
   const app = Fastify();
+  installJsonParser(app); // match production: tolerate empty application/json bodies
   registerItemRoutes(app, { items, passcode: "secret" });
   registerSettingsRoutes(app, { settings, passcode: "secret" });
   return app;
@@ -59,6 +61,16 @@ describe("DELETE /api/items/:id", () => {
     const res = await app.inject({ method: "DELETE", url: `/api/items/${id}`, headers: { "x-passcode": "secret" } });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ ok: true });
+    expect(items.get(id)).toBeUndefined();
+  });
+  it("deletes even with an empty application/json body (Safari sends this) — not 400", async () => {
+    const app = buildApp();
+    const id = items.create({ grocer: "kroger", capture_type: "barcode" }, "2026-06-08T00:00:00Z");
+    const res = await app.inject({
+      method: "DELETE", url: `/api/items/${id}`,
+      headers: { "x-passcode": "secret", "content-type": "application/json" }, payload: "",
+    });
+    expect(res.statusCode).toBe(200);
     expect(items.get(id)).toBeUndefined();
   });
 });
