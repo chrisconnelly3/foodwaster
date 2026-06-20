@@ -134,16 +134,24 @@ async function saveItem(id) {
   const price = $(`edprice-${id}`).value.trim();
   const body = { product_name: name };
   if (price) body.priceDollars = price; // omit when blank so an unpriced item isn't forced to $0
-  const res = await fetch(`/api/items/${id}`, { method: "PATCH", headers: headers(), body: JSON.stringify(body) });
-  if (!res.ok) return alert("Save failed");
-  loadLedger();
+  try {
+    const res = await fetch(`/api/items/${id}`, { method: "PATCH", headers: headers(), body: JSON.stringify(body) });
+    if (!res.ok) return alert(`Save failed (${res.status})`);
+    loadLedger();
+  } catch (e) {
+    alert("Save failed — network error. Check connection and retry.");
+  }
 }
 
 async function deleteItem(id) {
   if (!confirm("Delete this item? This can't be undone.")) return;
-  const res = await fetch(`/api/items/${id}`, { method: "DELETE", headers: headers() });
-  if (!res.ok) return alert("Delete failed");
-  loadLedger();
+  try {
+    const res = await fetch(`/api/items/${id}`, { method: "DELETE", headers: headers() });
+    if (!res.ok) return alert(`Delete failed (${res.status}). Pull to refresh and try again.`);
+    loadLedger();
+  } catch (e) {
+    alert("Delete failed — network error. Check connection and retry.");
+  }
 }
 
 function drawTrend(trend) {
