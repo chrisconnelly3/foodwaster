@@ -43,15 +43,16 @@ const reader = new BrowserMultiFormatReader();
 let scanning = false;
 $("scanBtn").onclick = async () => {
   const video = $("video");
-  if (scanning) { reader.reset(); video.hidden = true; scanning = false; $("scanBtn").textContent = "📷 Scan barcode"; return; }
-  video.hidden = false; scanning = true; $("scanBtn").textContent = "⏹ Stop scanning";
+  const wrap = $("scanwrap");
+  if (scanning) { reader.reset(); wrap.hidden = true; scanning = false; $("scanBtn").textContent = "📷 Scan barcode"; return; }
+  wrap.hidden = false; scanning = true; $("scanBtn").textContent = "⏹ Stop scanning";
   let handled = false; // ignore the repeated per-frame callbacks; act on the FIRST read only
   reader.decodeFromVideoDevice(null, video, async (result) => {
     if (!result || handled) return;
     handled = true;
     // Auto-close the camera after the first successful scan — reopen to scan the next item.
     reader.reset();
-    video.hidden = true; scanning = false; $("scanBtn").textContent = "📷 Scan barcode";
+    wrap.hidden = true; scanning = false; $("scanBtn").textContent = "📷 Scan barcode";
     const code = result.getText();
     navigator.vibrate?.(80);
     $("captureStatus").textContent = `Logged barcode ${code} ✓ (pricing…)`;
@@ -93,7 +94,9 @@ async function loadLedger() {
   $("monthTotal").textContent = fmt(d.monthTotalCents);
   $("annual").textContent = fmt(d.projectedAnnualCents);
   $("items").innerHTML = d.recent.map(renderItem).join("");
-  for (const el of document.querySelectorAll("[data-edit]")) el.onclick = () => editPrice(Number(el.dataset.edit));
+  for (const el of document.querySelectorAll("[data-row]")) el.onclick = () => toggleEditor(Number(el.dataset.row));
+  for (const el of document.querySelectorAll("[data-save]")) el.onclick = (e) => { e.stopPropagation(); saveItem(Number(el.dataset.save)); };
+  for (const el of document.querySelectorAll("[data-del]")) el.onclick = (e) => { e.stopPropagation(); deleteItem(Number(el.dataset.del)); };
   drawTrend(d.weeklyTrend);
 }
 
@@ -101,14 +104,45 @@ function renderItem(i) {
   const price = i.price_cents == null
     ? `<span class="pending">pending…</span>`
     : `${fmt(i.price_cents)} <span class="muted">(${i.price_source})</span>`;
-  return `<div class="item"><span>${i.product_name ?? "…"} <span class="muted">${i.grocer}</span></span>
-    <span data-edit="${i.id}">${price}</span></div>`;
+  const dollars = i.price_cents == null ? "" : (i.price_cents / 100).toFixed(2);
+  const name = esc(i.product_name);
+  return `<div class="item-wrap">
+    <div class="item" data-row="${i.id}">
+      <span>${name || "…"} <span class="muted">${i.grocer}</span></span>
+      <span>${price}</span>
+    </div>
+    <div class="editor" id="ed-${i.id}" hidden>
+      <label>Name<input type="text" id="edname-${i.id}" value="${name}"></label>
+      <label>Price ($)<input type="text" inputmode="decimal" id="edprice-${i.id}" value="${dollars}"></label>
+      <div class="editor-row">
+        <button class="ed-save" data-save="${i.id}">Save</button>
+        <button class="ed-del" data-del="${i.id}">Delete</button>
+      </div>
+    </div>
+  </div>`;
 }
 
-async function editPrice(id) {
-  const val = prompt("Set price in dollars (e.g. 5.99):");
-  if (!val) return;
-  await fetch(`/api/items/${id}`, { method: "PATCH", headers: headers(), body: JSON.stringify({ priceDollars: val }) });
+function toggleEditor(id) {
+  const ed = $(`ed-${id}`);
+  const wasOpen = !ed.hidden;
+  for (const e of document.querySelectorAll(".editor")) e.hidden = true; // only one open at a time
+  ed.hidden = wasOpen; // closed -> open; open -> closed
+}
+
+async function saveItem(id) {
+  const name = $(`edname-${id}`).value.trim();
+  const price = $(`edprice-${id}`).value.trim();
+  const body = { product_name: name };
+  if (price) body.priceDollars = price; // omit when blank so an unpriced item isn't forced to $0
+  const res = await fetch(`/api/items/${id}`, { method: "PATCH", headers: headers(), body: JSON.stringify(body) });
+  if (!res.ok) return alert("Save failed");
+  loadLedger();
+}
+
+async function deleteItem(id) {
+  if (!confirm("Delete this item? This can't be undone.")) return;
+  const res = await fetch(`/api/items/${id}`, { method: "DELETE", headers: headers() });
+  if (!res.ok) return alert("Delete failed");
   loadLedger();
 }
 
@@ -128,5 +162,9 @@ $("testEmail").onclick = async () => {
 };
 
 const fmt = (c) => `$${(c / 100).toFixed(2)}`;
+
+function esc(s) {
+  return (s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");

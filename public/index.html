@@ -22,7 +22,10 @@
         <button data-g="kroger">Kroger</button>
         <button data-g="target">Target</button>
       </div>
-      <video id="video" playsinline hidden></video>
+      <div id="scanwrap" class="scanwrap" hidden>
+        <video id="video" playsinline></video>
+        <div class="scanline"></div>
+      </div>
       <button class="big-btn" id="scanBtn">📷 Scan barcode</button>
       <button class="big-btn" id="photoBtn">🖼️ Photo of item</button>
       <input id="fileInput" type="file" accept="image/*" capture="environment" hidden />
