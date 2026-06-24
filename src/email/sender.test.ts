@@ -20,7 +20,7 @@ describe("sendSummaryEmail", () => {
     const resend = { emails: { send: vi.fn().mockResolvedValue({ data: { id: "e1" }, error: null }) } };
     const deps = {
       resend, emailLog: new EmailLogRepo(db), from: "Bot <b@x.com>", to: "w@x.com",
-      renderHtml: () => "<html>x</html>", renderChart: vi.fn().mockResolvedValue(Buffer.from("png")),
+      renderHtml: () => "<html>x</html>",
       copy: { subject: "Subj", headline: "H", body: "B", tips: [] }, now: () => "2026-06-08T13:00:00Z",
     };
     const r = await sendSummaryEmail(summary, deps as any);
@@ -33,22 +33,21 @@ describe("sendSummaryEmail", () => {
     const resend = { emails: { send: vi.fn().mockResolvedValue({ data: null, error: { message: "bad" } }) } };
     const deps = {
       resend, emailLog: new EmailLogRepo(db), from: "Bot <b@x.com>", to: "w@x.com",
-      renderHtml: () => "<html>x</html>", renderChart: vi.fn().mockResolvedValue(Buffer.from("png")),
+      renderHtml: () => "<html>x</html>",
       copy: { subject: "S", headline: "H", body: "B", tips: [] }, now: () => "2026-06-08T13:00:00Z",
     };
     const r = await sendSummaryEmail(summary, deps as any);
     expect(r.status).toBe("failed");
   });
 
-  it("still sends (status sent) when the chart render throws", async () => {
-    const resend = { emails: { send: vi.fn().mockResolvedValue({ data: { id: "e1" }, error: null }) } };
+  it("does not send a chart attachment (chart is an inline hosted image)", async () => {
+    const send = vi.fn().mockResolvedValue({ data: { id: "e1" }, error: null });
     const deps = {
-      resend, emailLog: new EmailLogRepo(db), from: "Bot <b@x.com>", to: "w@x.com",
-      renderHtml: () => "<html>x</html>", renderChart: vi.fn().mockRejectedValue(new Error("timeout")),
+      resend: { emails: { send } }, emailLog: new EmailLogRepo(db), from: "Bot <b@x.com>", to: "w@x.com",
+      renderHtml: () => "<html>x</html>",
       copy: { subject: "S", headline: "H", body: "B", tips: [] }, now: () => "2026-06-08T13:00:00Z",
     };
-    const r = await sendSummaryEmail(summary, deps as any);
-    expect(r.status).toBe("sent");
-    expect(resend.emails.send).toHaveBeenCalled();
+    await sendSummaryEmail(summary, deps as any);
+    expect(send.mock.calls[0][0].attachments).toBeUndefined();
   });
 });

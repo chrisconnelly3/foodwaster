@@ -6,30 +6,17 @@ import type { EmailLogRepo } from "../db/repositories/emailLog.js";
 export interface SendDeps {
   resend: Resend; emailLog: EmailLogRepo; from: string; to: string;
   copy: EmailCopy;
-  renderHtml: (s: EmailSummary, copy: EmailCopy, cid: string) => string;
-  renderChart: (s: EmailSummary) => Promise<Buffer>;
+  renderHtml: (s: EmailSummary, copy: EmailCopy) => string;
   now: () => string;
 }
 
 export async function sendSummaryEmail(s: EmailSummary, deps: SendDeps): Promise<{ status: "sent" | "failed" }> {
-  const cid = "trend-chart";
-  const html = deps.renderHtml(s, deps.copy, cid);
-
-  // Chart is best-effort: if QuickChart is unreachable, still send the email (without the image).
-  let attachments: any[] | undefined;
-  try {
-    const png = await deps.renderChart(s);
-    attachments = [{ filename: "trend.png", content: png, contentId: cid }];
-  } catch {
-    attachments = undefined;
-  }
+  // The trend chart is an inline hosted <img> in the HTML — no attachment needed.
+  const html = deps.renderHtml(s, deps.copy);
 
   let status: "sent" | "failed" = "sent";
   try {
-    const res = await deps.resend.emails.send({
-      from: deps.from, to: deps.to, subject: deps.copy.subject, html,
-      ...(attachments ? { attachments } : {}),
-    });
+    const res = await deps.resend.emails.send({ from: deps.from, to: deps.to, subject: deps.copy.subject, html });
     if ((res as any).error) status = "failed";
   } catch {
     status = "failed";

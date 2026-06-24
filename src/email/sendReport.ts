@@ -6,7 +6,6 @@ import { weekBounds, monthBounds } from "../domain/periods.js";
 import { buildSummary } from "./summaryBuilder.js";
 import { generateCopy } from "./copywriter.js";
 import { renderEmailHtml } from "./renderEmail.js";
-import { renderTrendPng } from "./chartImage.js";
 import { sendSummaryEmail } from "./sender.js";
 
 export interface SendReportDeps {
@@ -27,7 +26,7 @@ export function makeSendReport(deps: SendReportDeps) {
     const to = typeof deps.to === "function" ? deps.to() : deps.to;
     return sendSummaryEmail(summary, {
       resend: deps.resend, emailLog: deps.emailLog, from: deps.from, to, copy,
-      renderHtml: renderEmailHtml, renderChart: renderTrendPng, now: () => new Date().toISOString(),
+      renderHtml: renderEmailHtml, now: () => new Date().toISOString(),
     });
   };
 }
