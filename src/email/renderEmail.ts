@@ -63,6 +63,27 @@ export function renderEmailHtml(s: EmailSummary, copy: EmailCopy): string {
         <img src="${trendChartUrl(s)}" alt="Weekly waste trend" width="528" style="display:block;width:100%;max-width:528px;border:0;outline:none"/>
       </td></tr>` : "";
 
+  const itemRows = s.items.map((it) => `
+      <tr>
+        <td style="padding:10px 0;border-bottom:1px solid ${HAIR};font:400 15px/1.3 Helvetica,Arial,sans-serif;color:${INK}">
+          ${esc(it.name)}${it.qty > 1 ? ` <span style="color:${MUTED};font-size:13px">×${it.qty}</span>` : ""}
+          <span style="display:block;font:400 12px/1.3 Helvetica,Arial,sans-serif;color:${MUTED}">${esc(GROCER_LABEL[it.grocer])}</span>
+        </td>
+        <td align="right" valign="top" style="padding:10px 0;border-bottom:1px solid ${HAIR};font:700 15px/1.3 Georgia,serif;color:${RED};white-space:nowrap">${formatCents(it.cents)}</td>
+      </tr>`).join("");
+
+  const itemsBlock = s.items.length > 0 ? `
+      <tr><td style="padding:8px 36px 4px">
+        ${sectionTitle("The full tab")}
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          ${itemRows}
+          <tr>
+            <td style="padding:14px 0 0;font:600 14px/1.3 Helvetica,Arial,sans-serif;letter-spacing:.04em;text-transform:uppercase;color:${INK}">Total wasted</td>
+            <td align="right" style="padding:14px 0 0;font:700 18px/1.3 Georgia,serif;color:${INK}">${formatCents(s.totalCents)}</td>
+          </tr>
+        </table>
+      </td></tr>` : "";
+
   const preheader = `${formatCents(s.totalCents)} thrown away this ${periodWord} — projected ${formatCents(s.projectedAnnualCents)}/yr.`;
 
   return `<!DOCTYPE html>
@@ -106,6 +127,8 @@ export function renderEmailHtml(s: EmailSummary, copy: EmailCopy): string {
         </td></tr>
 
         ${chartBlock}
+
+        ${itemsBlock}
 
         <tr><td style="padding:8px 36px 4px">
           ${sectionTitle("Worst store")}

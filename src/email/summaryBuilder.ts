@@ -9,6 +9,7 @@ export interface EmailSummary {
   byGrocer: { grocer: Grocer; cents: number; pct: number }[];
   worstGrocer: { grocer: Grocer; cents: number; pct: number };
   repeatOffenders: { name: string; count: number; cents: number }[];
+  items: { name: string; grocer: Grocer; qty: number; cents: number }[];
   trend: { weekStart: string; label: string; cents: number }[];
   photoPaths: string[];
 }
@@ -30,6 +31,9 @@ export function buildSummary(i: BuildSummaryInput): EmailSummary {
     byGrocer: grocers,
     worstGrocer: grocers[0] ?? { grocer: "whole_foods" as Grocer, cents: 0, pct: 0 },
     repeatOffenders: repeatOffenders(i.periodItems).slice(0, 5),
+    items: i.periodItems
+      .map(it => ({ name: it.product_name ?? "Unknown item", grocer: it.grocer, qty: it.qty, cents: (it.price_cents ?? 0) * it.qty }))
+      .sort((a, b) => b.cents - a.cents),
     trend: weeklyTrend(i.allItems, i.tz),
     photoPaths: i.periodItems.filter(it => it.photo_path).map(it => it.photo_path!),
   };

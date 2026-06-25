@@ -22,4 +22,19 @@ describe("buildSummary", () => {
     expect(s.worstGrocer.grocer).toBe("whole_foods");
     expect(s.repeatOffenders[0].name).toBe("Blueberries");
   });
+
+  it("includes the itemized line items (name, grocer, qty, line total) sorted by cost", () => {
+    const periodItems = [
+      item({ id: 1, product_name: "Cheap herb", price_cents: 200, qty: 1 }),
+      item({ id: 2, product_name: "Pricey steak", price_cents: 1000, qty: 2 }),
+    ];
+    const s = buildSummary({
+      periodType: "monthly", periodLabel: "Jun 2026",
+      periodStart: "2026-06-01", periodEnd: "2026-07-01",
+      periodItems, allItems: periodItems, tz: "UTC",
+    });
+    expect(s.items).toHaveLength(2);
+    expect(s.items[0]).toEqual({ name: "Pricey steak", grocer: "whole_foods", qty: 2, cents: 2000 });
+    expect(s.items[1]).toEqual({ name: "Cheap herb", grocer: "whole_foods", qty: 1, cents: 200 });
+  });
 });

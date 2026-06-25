@@ -12,7 +12,7 @@ const summary = {
   totalCents: 4713, itemCount: 6, projectedAnnualCents: 245076,
   byCategory: [], byGrocer: [{ grocer: "whole_foods", cents: 4713, pct: 100 }],
   worstGrocer: { grocer: "whole_foods", cents: 4713, pct: 100 },
-  repeatOffenders: [], trend: [], photoPaths: [],
+  repeatOffenders: [], items: [], trend: [], photoPaths: [],
 } as EmailSummary;
 
 describe("sendSummaryEmail", () => {

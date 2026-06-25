@@ -9,7 +9,7 @@ const summary: EmailSummary = {
   byGrocer: [{ grocer: "whole_foods", cents: 4713, pct: 100 }],
   worstGrocer: { grocer: "whole_foods", cents: 4713, pct: 100 },
   repeatOffenders: [{ name: "Blueberries", count: 3, cents: 1797 }],
-  trend: [], photoPaths: [],
+  items: [], trend: [], photoPaths: [],
 };
 
 describe("copywriter", () => {

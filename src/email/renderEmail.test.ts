@@ -10,6 +10,7 @@ const summary = {
   byGrocer: [{ grocer: "whole_foods", cents: 4713, pct: 100 }],
   worstGrocer: { grocer: "whole_foods", cents: 4713, pct: 100 },
   repeatOffenders: [{ name: "Blueberries", count: 3, cents: 1797 }],
+  items: [{ name: "Organic Heavy Cream", grocer: "whole_foods", qty: 1, cents: 899 }],
   trend: [{ weekStart: "2026-06-01", label: "Jun 1", cents: 4713 }], photoPaths: [],
 } as EmailSummary;
 const copy: EmailCopy = { subject: "S", headline: "Money in the bin", body: "We wasted a lot.", tips: ["Buy less"] };
@@ -32,5 +33,12 @@ describe("renderEmailHtml", () => {
   it("omits the chart block when there is no trend data", () => {
     const html = renderEmailHtml({ ...summary, trend: [] } as EmailSummary, copy);
     expect(html).not.toContain("quickchart.io");
+  });
+  it("lists each wasted item with its price plus a total", () => {
+    const html = renderEmailHtml(summary, copy);
+    expect(html).toContain("The full tab");
+    expect(html).toContain("Organic Heavy Cream");
+    expect(html).toContain("$8.99");
+    expect(html).toContain("Total wasted");
   });
 });
