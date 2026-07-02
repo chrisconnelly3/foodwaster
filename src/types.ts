@@ -32,5 +32,5 @@ export interface PriceCheck {
 export interface EmailLogRow {
   id: number; period_type: "weekly" | "monthly";
   period_start: string; period_end: string;
-  total_cents: number; sent_at: string; status: "sent" | "failed";
+  total_cents: number; sent_at: string; status: "sent" | "failed" | "test";
 }

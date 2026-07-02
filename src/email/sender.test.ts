@@ -40,6 +40,18 @@ describe("sendSummaryEmail", () => {
     expect(r.status).toBe("failed");
   });
 
+  it("records status 'test' when markTest is set (so de-dup ignores it)", async () => {
+    const resend = { emails: { send: vi.fn().mockResolvedValue({ data: { id: "e1" }, error: null }) } };
+    const deps = {
+      resend, emailLog: new EmailLogRepo(db), from: "Bot <b@x.com>", to: "w@x.com",
+      renderHtml: () => "<html>x</html>", markTest: true,
+      copy: { subject: "S", headline: "H", body: "B", tips: [] }, now: () => "2026-06-08T13:00:00Z",
+    };
+    const r = await sendSummaryEmail(summary, deps as any);
+    expect(r.status).toBe("test");
+    expect(new EmailLogRepo(db).alreadySent("weekly", "2026-06-01")).toBe(false);
+  });
+
   it("does not send a chart attachment (chart is an inline hosted image)", async () => {
     const send = vi.fn().mockResolvedValue({ data: { id: "e1" }, error: null });
     const deps = {

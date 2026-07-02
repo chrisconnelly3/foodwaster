@@ -8,19 +8,21 @@ export interface SendDeps {
   copy: EmailCopy;
   renderHtml: (s: EmailSummary, copy: EmailCopy) => string;
   now: () => string;
+  markTest?: boolean; // true = record as "test" so the cron's de-dup never counts it as a real send
 }
 
-export async function sendSummaryEmail(s: EmailSummary, deps: SendDeps): Promise<{ status: "sent" | "failed" }> {
+export async function sendSummaryEmail(s: EmailSummary, deps: SendDeps): Promise<{ status: "sent" | "failed" | "test" }> {
   // The trend chart is an inline hosted <img> in the HTML — no attachment needed.
   const html = deps.renderHtml(s, deps.copy);
 
-  let status: "sent" | "failed" = "sent";
+  let ok = true;
   try {
     const res = await deps.resend.emails.send({ from: deps.from, to: deps.to, subject: deps.copy.subject, html });
-    if ((res as any).error) status = "failed";
+    if ((res as any).error) ok = false;
   } catch {
-    status = "failed";
+    ok = false;
   }
+  const status: "sent" | "failed" | "test" = !ok ? "failed" : deps.markTest ? "test" : "sent";
   deps.emailLog.record({
     period_type: s.periodType, period_start: s.periodStart, period_end: s.periodEnd,
     total_cents: s.totalCents, status,
