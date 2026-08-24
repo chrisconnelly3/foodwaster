@@ -16,7 +16,7 @@
 
 - Money is integer cents in the DB; the UI shows/edits dollars.
 - TDD for the repo and route (failing test → run → implement → run → commit). The frontend (`public/*`) has no unit tests — it is verified by build + manual phone check + a deploy.
-- Commit with `git -c user.name="Chris" -c user.email="chrisconnelly3@gmail.com" commit -m "..."` (git identity is not global).
+- Commit with `git -c user.name="Chris" -c user.email="you@example.com" commit -m "..."` (git identity is not global).
 
 ## File Structure
 

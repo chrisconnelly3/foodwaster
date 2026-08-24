@@ -6,3 +6,6 @@ dist/
 data/
 deploy/secrets.fly.env
 *.secrets.env
+.playwright-mcp/
+icon-gen.html
+icon-preview.png
